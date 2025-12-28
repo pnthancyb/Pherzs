@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Printer, AlertTriangle, Terminal } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Printer, AlertTriangle, Terminal, Download, Crosshair } from 'lucide-react';
 import { fetchMarketOverview, fetchCandles, calculateIndicators } from './services/api';
 import { scanMarket, generateDossier } from './services/gemini';
 import { Chart } from './components/Chart';
 import { Scanner } from './components/Scanner';
 import { Mindstream } from './components/Mindstream';
 import { AssetData, MarketScanResult, Candle, TechnicalIndicators, ResearchDossier, MindstreamLog } from './types';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 function App() {
   // State
@@ -19,6 +21,7 @@ function App() {
   const [logs, setLogs] = useState<MindstreamLog[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const dossierRef = useRef<HTMLDivElement>(null);
 
   // Helper to add logs
   const addLog = useCallback((message: string, type: MindstreamLog['type'] = 'info') => {
@@ -62,7 +65,7 @@ function App() {
     setLogs([]); // Clear logs for new focus
     
     try {
-      addLog(`Initializing Deep Dive Protocol for ${symbol}...`, 'info');
+      addLog(`Initializing Pherzs Protocol for ${symbol}...`, 'info');
       
       // 1. Fetch Data
       addLog(`Fetching 500H of OHLCV data for ${symbol}...`, 'search');
@@ -71,7 +74,7 @@ function App() {
       addLog('Data acquired successfully.', 'success');
 
       // 2. Local Math
-      addLog('Calculating RSI, Bollinger Bands, MACD...', 'calc');
+      addLog('Calculating ATR, Pivot Points, RSI, Bollinger Bands...', 'calc');
       const indicators = calculateIndicators(data);
       setTechnicals(indicators);
 
@@ -79,7 +82,7 @@ function App() {
       await generateDossier(symbol, data, indicators, (msg) => addLog(msg, 'search'))
         .then(d => {
           setDossier(d);
-          addLog('Intelligence Dossier Compiled.', 'success');
+          addLog('Pherzs Strategy Dossier Compiled.', 'success');
         });
 
     } catch (e) {
@@ -94,6 +97,27 @@ function App() {
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    if (!dossierRef.current) return;
+    addLog('Generating Investment Memo PDF...', 'calc');
+    
+    try {
+      const element = dossierRef.current;
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Pherzs_Memo_${ticker}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addLog('PDF Downloaded successfully.', 'success');
+    } catch (error) {
+      console.error(error);
+      addLog('Failed to generate PDF.', 'error');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f7f7f5] text-black flex flex-col font-sans selection:bg-black selection:text-white">
       
@@ -104,7 +128,7 @@ function App() {
             <Terminal size={18} />
           </div>
           <div>
-            <h1 className="font-serif font-bold text-lg tracking-tight">NeuroTrade AI <span className="text-neutral-400 font-normal">v3.0</span></h1>
+            <h1 className="font-serif font-bold text-lg tracking-tight">Pherzs <span className="text-neutral-400 font-normal">Terminal</span></h1>
           </div>
         </div>
         
@@ -121,11 +145,19 @@ function App() {
             <Search className="absolute left-3 top-2 text-neutral-400" size={16} />
           </div>
           <button 
+            onClick={handleDownloadPDF}
+            disabled={!dossier}
+            className="flex items-center gap-2 px-3 py-1.5 border border-neutral-300 hover:bg-neutral-100 text-sm font-serif disabled:opacity-50"
+          >
+            <Download size={16} />
+            <span className="hidden md:inline">Save PDF</span>
+          </button>
+          <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-3 py-1.5 border border-neutral-300 hover:bg-neutral-100 text-sm font-serif"
           >
             <Printer size={16} />
-            <span className="hidden md:inline">Print Memo</span>
+            <span className="hidden md:inline">Print</span>
           </button>
         </div>
       </header>
@@ -142,7 +174,7 @@ function App() {
                 Status: {isScanning ? 'Scanning...' : 'Active'}
               </span>
               <span className="text-xs font-mono text-neutral-500 uppercase">
-                Model: Gemini 3 Flash
+                AI: Gemini Flash
               </span>
             </div>
           </div>
@@ -175,9 +207,55 @@ function App() {
           </div>
 
           {/* Right Column: Intelligence Dossier */}
-          <div className="w-full md:w-1/3 border border-neutral-300 bg-white p-6 shadow-sm overflow-y-auto max-h-[710px]">
+          <div ref={dossierRef} className="w-full md:w-1/3 border border-neutral-300 bg-white p-8 shadow-sm overflow-y-auto max-h-[710px]">
              {dossier ? (
                <div className="space-y-6 animate-in fade-in duration-500">
+                 
+                 {/* Smart Order Ticket */}
+                 {dossier.tradeSetup && (
+                  <div className="mb-6 border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="flex justify-between items-center border-b border-neutral-200 pb-2 mb-2">
+                      <span className="font-serif font-bold text-lg flex items-center gap-2">
+                        <Crosshair size={18} />
+                        TRADE SETUP
+                      </span>
+                      <span className={`font-mono text-sm px-2 py-1 font-bold text-white ${
+                        dossier.tradeSetup.action === 'BUY' ? 'bg-black' : 
+                        dossier.tradeSetup.action === 'SELL' ? 'bg-black' : 'bg-neutral-500'
+                      }`}>
+                        {dossier.tradeSetup.action}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 font-mono text-sm mb-2">
+                         <div>
+                            <div className="text-neutral-500 text-[10px] uppercase tracking-wider">Pattern</div>
+                            <div className="font-bold truncate">{dossier.tradeSetup.patternDetected}</div>
+                         </div>
+                         <div className="text-right">
+                            <div className="text-neutral-500 text-[10px] uppercase tracking-wider">Confidence</div>
+                            <div className="font-bold">{dossier.tradeSetup.confidenceScore}%</div>
+                         </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 font-mono text-sm bg-neutral-50 p-2 border border-neutral-200">
+                      <div className="text-center border-r border-neutral-200">
+                        <div className="text-neutral-500 text-[10px] uppercase">ENTRY</div>
+                        <div className="font-bold">{dossier.tradeSetup.entryPrice}</div>
+                      </div>
+                      <div className="text-center border-r border-neutral-200">
+                        <div className="text-neutral-500 text-[10px] uppercase">TARGET</div>
+                        <div className="font-bold text-green-700">{dossier.tradeSetup.takeProfit}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-neutral-500 text-[10px] uppercase">STOP</div>
+                        <div className="font-bold text-red-700">{dossier.tradeSetup.stopLoss}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-center text-[10px] font-mono text-neutral-400">
+                        R/R: {dossier.tradeSetup.riskRewardRatio} • Timeframe: {dossier.tradeSetup.timeframe}
+                    </div>
+                  </div>
+                 )}
+
                  <div className="border-b border-black pb-4">
                    <div className="flex justify-between items-start">
                     <h2 className="font-serif text-2xl font-bold">{ticker} DOSSIER</h2>
@@ -188,18 +266,15 @@ function App() {
                       {dossier.sentiment}
                     </span>
                    </div>
-                   <p className="mt-2 font-serif text-sm leading-relaxed text-neutral-700">
+                   <p className="mt-2 font-serif text-sm leading-relaxed text-neutral-700 text-justify">
                      {dossier.summary}
                    </p>
                  </div>
 
                  <div>
                    <h3 className="font-mono text-xs font-bold uppercase tracking-wider mb-3 text-neutral-500">Technical Outlook</h3>
-                   <div className="p-3 bg-neutral-50 border-l-2 border-black font-serif text-sm">
+                   <div className="p-3 bg-neutral-50 border-l-2 border-black font-serif text-sm leading-relaxed text-justify">
                      {dossier.technicalAnalysis}
-                   </div>
-                   <div className="mt-2 flex justify-between font-mono text-xs">
-                     <span>TARGET: {dossier.priceTarget}</span>
                    </div>
                  </div>
 
@@ -222,8 +297,8 @@ function App() {
              ) : (
                <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-50">
                  <Search size={48} className="mb-4 text-neutral-300" />
-                 <h3 className="font-serif text-lg text-neutral-500">Intelligence Module Idle</h3>
-                 <p className="font-mono text-xs text-neutral-400 mt-2">Select a ticker to begin deep research.</p>
+                 <h3 className="font-serif text-lg text-neutral-500">Pherzs Protocol Idle</h3>
+                 <p className="font-mono text-xs text-neutral-400 mt-2">Select a ticker to begin analysis.</p>
                </div>
              )}
           </div>

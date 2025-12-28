@@ -140,5 +140,56 @@ export function calculateIndicators(candles: Candle[]): TechnicalIndicators {
   const macdLine = ema12.map((v, i) => v - ema26[i]);
   const signalLine = calcEMA(macdLine, 9);
 
-  return { rsi, upperBand: upper, lowerBand: lower, macd: macdLine, signal: signalLine };
+  // ATR (Average True Range) - Essential for Volatility Based Stops
+  const atr = [];
+  const atrPeriod = 14;
+  const trueRanges = [];
+
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high;
+    const low = candles[i].low;
+    const prevClose = candles[i-1].close;
+    
+    const tr = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
+    trueRanges.push(tr);
+  }
+
+  // Initial ATR (Simple Average)
+  let initialATR = 0;
+  for (let i = 0; i < atrPeriod; i++) {
+    initialATR += trueRanges[i];
+  }
+  initialATR /= atrPeriod;
+  atr.push(initialATR);
+
+  // Subsequent ATR (Smoothed)
+  for (let i = atrPeriod; i < trueRanges.length; i++) {
+    const currentTR = trueRanges[i];
+    const prevATR = atr[atr.length - 1];
+    const currentATR = ((prevATR * (atrPeriod - 1)) + currentTR) / atrPeriod;
+    atr.push(currentATR);
+  }
+  
+  // Pad the beginning of ATR array to match candle length
+  const padding = candles.length - atr.length;
+  for(let i=0; i<padding; i++) atr.unshift(0);
+
+
+  // Pivot Points (Standard) based on previous complete period (using last candle as approx for now)
+  const lastCandle = candles[candles.length - 1];
+  const p = (lastCandle.high + lastCandle.low + lastCandle.close) / 3;
+  const pivotPoints = {
+    pivot: p,
+    r1: (2 * p) - lastCandle.low,
+    r2: p + (lastCandle.high - lastCandle.low),
+    s1: (2 * p) - lastCandle.high,
+    s2: p - (lastCandle.high - lastCandle.low)
+  };
+
+
+  return { rsi, upperBand: upper, lowerBand: lower, macd: macdLine, signal: signalLine, atr, pivotPoints };
 }

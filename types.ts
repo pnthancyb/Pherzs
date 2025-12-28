@@ -14,6 +14,14 @@ export interface TechnicalIndicators {
   lowerBand: number[];
   macd: number[];
   signal: number[];
+  atr: number[]; // Added ATR for volatility-based stops
+  pivotPoints: { // Added Pivot Points for support/resistance
+    r1: number;
+    r2: number;
+    s1: number;
+    s2: number;
+    pivot: number;
+  };
 }
 
 export interface AssetData {
@@ -30,7 +38,19 @@ export interface MarketScanResult {
   reason: string;
 }
 
+export interface TradeSetup {
+  action: 'BUY' | 'SELL' | 'WAIT';
+  entryPrice: string;
+  stopLoss: string;
+  takeProfit: string;
+  riskRewardRatio: string;
+  confidenceScore: number;
+  timeframe: string;
+  patternDetected: string;
+}
+
 export interface ResearchDossier {
+  tradeSetup: TradeSetup; // New structured signal
   summary: string;
   sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   news: Array<{ title: string; source: string; url?: string }>;

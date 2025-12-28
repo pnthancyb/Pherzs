@@ -48,29 +48,42 @@ export async function generateDossier(
   onLog: (msg: string) => void
 ): Promise<ResearchDossier> {
   
-  onLog(`Initializing Gemini Deep Research Agent for ${symbol}...`);
+  onLog(`Initializing Pherzs Logic Core for ${symbol}...`);
 
   const lastPrice = candles[candles.length - 1].close;
   const lastRSI = technicals.rsi[technicals.rsi.length - 1];
+  const lastATR = technicals.atr[technicals.atr.length - 1];
   
-  const techSummary = `Price: ${lastPrice}, RSI(14): ${lastRSI.toFixed(2)}. Latest trend: ${candles[candles.length - 1].close > candles[candles.length - 50].close ? 'Up' : 'Down'}`;
+  // Mathematical Context for the AI
+  const mathContext = `
+    Symbol: ${symbol}
+    Current Price: ${lastPrice}
+    RSI(14): ${lastRSI.toFixed(2)}
+    ATR(14): ${lastATR.toFixed(4)}
+    Pivot Point: ${technicals.pivotPoints.pivot.toFixed(2)}
+    R1: ${technicals.pivotPoints.r1.toFixed(2)}
+    S1: ${technicals.pivotPoints.s1.toFixed(2)}
+    Trend: ${candles[candles.length - 1].close > candles[candles.length - 50].close ? 'Up' : 'Down'}
+  `;
   
   const prompt = `
-    Act as a "Deep Research Agent" specialized in financial markets.
-    Target Asset: ${symbol}
-    Technical Context: ${techSummary}
+    You are 'Pherzs', an elite AI trading assistant. You embody the principles of the 'Trading Bible':
+    1. **Discipline:** No emotions. Strictly rule-based.
+    2. **Risk Management:** Never risk more than 1-2% of capital per trade. Use tight stops based on volatility (ATR).
+    3. **Trend:** The trend is your friend. Don't fight it unless there is a clear reversal pattern (Head & Shoulders, Double Top/Bottom).
+    4. **Psychology:** Be a realist. Trading is not gambling.
     
-    MISSION CRITICAL INSTRUCTIONS:
-    1. UTILIZE the Google Search Tool to perform a massive, deep-sweep information gathering operation. Search for: "${symbol} latest news", "${symbol} regulatory filings", "${symbol} partnership rumors", "${symbol} reddit sentiment", "${symbol} protocol upgrades".
-    2. MANDATORY: You must identify and summarize at least 15-20 DISTINCT, reputable news sources or forum discussions from the last 7 days. Do not settle for 3-4 items. Dig deeper.
-    3. FOCUS on factual reporting (hacks, earnings, mainnet launches) over idle speculation.
-    4. SYNTHESIZE a "Technical Outlook" based on the provided technical indicators.
+    TASK:
+    1. Analyze the provided technical data (${mathContext}).
+    2. Search Google for "${symbol} crypto news", "${symbol} regulatory announcements", "market sentiment for ${symbol}".
+    3. Determine a concrete TRADE SETUP (Buy, Sell, or Wait).
+    4. Calculate precise Entry, Stop Loss (using ATR logic from the Trading Bible: usually 1.5x to 2x ATR from entry), and Take Profit levels.
     
     OUTPUT FORMAT:
-    Return strictly JSON with the schema defined below. Do not include markdown formatting like \`\`\`json.
+    Return strictly JSON.
   `;
 
-  onLog("Dispatching Google Search spiders (Target: 15+ Sources)...");
+  onLog("Dispatching Deep Research Agent...");
 
   try {
     const response = await ai.models.generateContent({
@@ -82,11 +95,24 @@ export async function generateDossier(
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            summary: { type: Type.STRING, description: "Executive summary of the current market situation." },
+            tradeSetup: {
+              type: Type.OBJECT,
+              properties: {
+                action: { type: Type.STRING, enum: ['BUY', 'SELL', 'WAIT'] },
+                entryPrice: { type: Type.STRING, description: "Specific price or 'Market'" },
+                stopLoss: { type: Type.STRING, description: "Specific price based on ATR logic" },
+                takeProfit: { type: Type.STRING, description: "Specific price based on Resistance/Pivot" },
+                riskRewardRatio: { type: Type.STRING, description: "e.g. 1:2.5" },
+                confidenceScore: { type: Type.NUMBER, description: "1-100" },
+                timeframe: { type: Type.STRING, description: "e.g. Intraday, Swing" },
+                patternDetected: { type: Type.STRING, description: "e.g. Bull Flag, Head & Shoulders, Consolidation" }
+              }
+            },
+            summary: { type: Type.STRING, description: "Executive summary of the market situation." },
             sentiment: { type: Type.STRING, enum: ['BULLISH', 'BEARISH', 'NEUTRAL'] },
             news: {
               type: Type.ARRAY,
-              description: "A list of at least 15 found news items.",
+              description: "Relevant news items found.",
               items: {
                 type: Type.OBJECT,
                 properties: {
@@ -103,7 +129,7 @@ export async function generateDossier(
       }
     });
 
-    onLog("Parsing intelligence data...");
+    onLog("Synthesizing Pherzs Strategy Report...");
     
     const result = JSON.parse(response.text || "{}");
     return result;
