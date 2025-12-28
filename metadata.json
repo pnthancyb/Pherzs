@@ -1,0 +1,5 @@
+{
+  "name": "NeuroTrade AI V3",
+  "description": "High-frequency research terminal combining Notion aesthetics with Bloomberg density. Features robust crypto data fetching and deep-dive Gemini 3.0 research.",
+  "requestFramePermissions": []
+}
